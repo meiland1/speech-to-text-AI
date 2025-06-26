@@ -73,13 +73,13 @@ def process_audio(audio_file, output_txt_spanish, output_txt_english):
         for segment in result_english["segments"]:
             f.write(f"[{segment.get('speaker', 'Unknown')}]: {segment['text'].strip()}\n")
 
-    print(f"Done with {audio_file} ✅")
+    print(f"Done with {audio_file}")
 
 # --- MAIN EXECUTION LOOP ---
 audio_jobs = [
-    ("Interview19_250416_1459.mp3", "transcription19_spanish.txt", "translation19_english.txt"),
-    ("Interview19_pt2_250416_1801.mp3", "transcription19_pt2_spanish.txt", "translation19_pt2_english.txt"),
-    ("Interview20_250418_1450.mp3", "transcription20_spanish.txt", "translation20_english.txt")
+    ("audio1.mp3", "transcription1_spanish.txt", "translation1_english.txt"),
+    ("audio2.mp3", "transcription2_spanish.txt", "translation2_english.txt"),
+    ("audio3.mp3", "transcription3_spanish.txt", "translation3_english.txt")
 ]
 
 start_time = time.time()

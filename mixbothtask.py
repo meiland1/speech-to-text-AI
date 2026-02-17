@@ -3,7 +3,19 @@ import torch
 from dotenv import load_dotenv
 import os
 import time
+torch.serialization.add_safe_globals(['omegaconf.listconfig.ListConfig'])
+from pyannote.audio import Pipeline
+import pandas as pd
 
+_original_torch_load = torch.load
+
+def _trusted_load(*args, **kwargs):
+    kwargs['weights_only'] = False
+    return _original_torch_load(*args, **kwargs)
+
+torch.load = _trusted_load
+
+# print(torch.__version__)
 # --- LOAD .ENV VARIABLES ---
 load_dotenv()
 your_token = os.getenv("HUGGINGFACE_TOKEN")
@@ -12,10 +24,11 @@ if your_token is None:
     raise ValueError("Hugging Face token not found! Please set it in your .env file.")
 
 # --- SETTINGS ---
-audio_file = "Podcast_4_Interview_with_Quique.mp3"  # <--- Your Spanish audio file here
+# audio_file = "Podcast_4_Interview_with_Quique.mp3"  # <--- Your Spanish audio file here
+audio_file = "FB_03_ES_GC_02_C1_FB_03_ES_GC_02_C2_16khz.wav"
 output_txt_spanish = "transcription_spanish.txt"
 output_txt_english = "transcription_english.txt"
-batch_size = 16
+batch_size = 8 #16
 compute_type = "float32"
 
 # --- DEVICE SETUP ---
@@ -53,22 +66,44 @@ result_english = whisperx.align(result_english["segments"], model_a, metadata, a
 
 # --- LOAD DIARIZATION MODEL ---
 print("Loading speaker diarization model...")
-diarize_model = whisperx.DiarizationPipeline(
-    use_auth_token=your_token,
-    device=device
+# diarize_model = whisperx.DiarizationPipeline(
+#     use_auth_token=your_token,
+#     device=device
+# )
+diarize_model = Pipeline.from_pretrained(
+    "pyannote/speaker-diarization-3.1",
+    use_auth_token=your_token
 )
+diarize_model.to(torch.device(device))
 
 # --- PERFORM DIARIZATION ---
 print("Diarizing audio...")
-diarize_segments = diarize_model(audio)
+# audio_dict = {"uri": "audio", "audio": audio_file}
+diarize_segments = diarize_model(audio_file)
+
+diarize_list = []
+for turn, _, speaker in diarize_segments.itertracks(yield_label=True):
+    diarize_list.append({
+        "start": float(turn.start),
+        "end": float(turn.end),
+        "speaker":str(speaker)
+    })
+if not diarize_list:
+    print("WARNING: No diarization found")
+    diarize_df = pd.DataFrame(columns=["start", "end", "speaker"])
+else:
+    diarize_df = pd.DataFrame(diarize_list)
+    print(f"Found {diarize_df['speaker'].nunique()} speakers")
+    print("DataFrame info:")
+    print(diarize_df.head())
+    print("\nColumns:", diarize_df.columns.tolist())
 
 # --- ASSIGN SPEAKERS ---
 print("Assigning speakers to Spanish segments...")
-result_spanish = whisperx.assign_word_speakers(diarize_segments, result_spanish)
+result_spanish = whisperx.assign_word_speakers(diarize_df, result_spanish) #diarize_segments, result_spanish
 
 print("Assigning speakers to English segments...")
-result_english = whisperx.assign_word_speakers(diarize_segments, result_english)
-
+result_english = whisperx.assign_word_speakers(diarize_df, result_english) #diarize_segments, result_english
 # --- SAVE SPANISH OUTPUT ---
 print(f"Saving Spanish transcription to {output_txt_spanish}...")
 with open(output_txt_spanish, "w", encoding="utf-8") as f:

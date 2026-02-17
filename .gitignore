@@ -1,0 +1,22 @@
+# Environment Variables
+.env
+.env.local
+speech_to_text_AI
+
+
+# Data
+data/
+Mexican_spanish_GC/
+FB_03_ES_GC_02_C1_FB_03_ES_GC_02_C2_16khz.wav
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+#output
+transcription_english.txt
+transcription_spanish.txt
+
+# info
+info.txt
